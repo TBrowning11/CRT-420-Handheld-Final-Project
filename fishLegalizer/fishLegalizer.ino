@@ -469,8 +469,13 @@ void updateMenu() {
       }
       break;
 
-  case 5:
-    // ***TYLER*** - not sure how many menu items you want on the HELP screen...for now just "HOM" does anything
+    // handle all of the "Lake" menus that hang off of the "LIMITS" menu...all of thier functionality is the same
+    // 5=Oconee; 6=Lake 2; 7=Lake3; 8=Lake4; 9=Lake5
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
       if ((currentMenuItem == 0) && (up == true)) {
         // do nothing
       } else if ((currentMenuItem == 0) && (down == true)) {
@@ -482,6 +487,7 @@ void updateMenu() {
         currentMenuItem = 0;
       }
       break;
+      
   } // end SWITCH
 
   drawScreen(currentMenuPage, currentMenuItem);
