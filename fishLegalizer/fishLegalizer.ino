@@ -12,7 +12,9 @@
 /  v0.3 - changed button press statements to LOW since we are using INPUT_PULLUPs...which take buttons
 /         to HIGH when they are UNpressed.  They should go LOW when pressed.
 /  v0.4 - added new cases for sub menus inside of limits menu and added a way to get back to home screen
-/ .       from each one. Aslo changed scaleLoopBreak to 0 (temporary)
+/         from each one. Also changed scaleLoopBreak to 0 (temporary)
+/  v0.5 - updated switch/case statement for menu control of the LIMITS sub-menus;  modified the re-draw statements for
+/         the scale amount showing on the SCALE screen
 /
 ////
 /
@@ -153,7 +155,10 @@ void loop() {
   //     we will update the screen periodically to show the new weight.  We do this in case their is a load settling on the
   //     load cell.  Otherwise, it would call only once and not update until buttons were pressed.
   if ((currentMenuPage == 1) && (scaleLoopCounter >= scaleLoopBreak)) {
-    drawScreen(currentMenuPage, currentMenuItem);
+    // rather than use the drawScreen function (which is used for general screen draws between menu changes, we'll do something
+    //     different here to try and help the scale results show up better/faster
+    //drawScreen(currentMenuPage, currentMenuItem);
+    drawScaleWeightScreen();
     scaleLoopCounter = 0;
   } else {
     scaleLoopCounter++;
@@ -469,8 +474,13 @@ void updateMenu() {
       }
       break;
 
-  case 5:
-    // ***TYLER*** - not sure how many menu items you want on the HELP screen...for now just "HOM" does anything
+    // handle all of the "Lake" menus that hang off of the "LIMITS" menu...all of thier functionality is the same
+    // 5=Oconee; 6=Lake 2; 7=Lake3; 8=Lake4; 9=Lake5
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
       if ((currentMenuItem == 0) && (up == true)) {
         // do nothing
       } else if ((currentMenuItem == 0) && (down == true)) {
@@ -482,6 +492,7 @@ void updateMenu() {
         currentMenuItem = 0;
       }
       break;
+      
   } // end SWITCH
 
   drawScreen(currentMenuPage, currentMenuItem);
@@ -543,7 +554,7 @@ void drawScreen(int menuPageShown, int menuItemSelected) {
   if (menuPageShown == 1) {
     tft.setTextColor(WHITE, BLACK);
     tft.setCursor(9, 0);
-    //tft.print("SCALE");
+    tft.print("SCALE");
 
     // show the weight that is currently read from the scale
     // ***TYLER*** - you may have to adjust the x & y positions of the text below to get the weight to display like you want it
@@ -558,8 +569,7 @@ void drawScreen(int menuPageShown, int menuItemSelected) {
   }
 
   // MENU PAGE 2 - Limits
-
-if (menuPageShown == 2) {
+  if (menuPageShown == 2) {
     tft.setTextColor(WHITE, BLACK);
     tft.setCursor(9, 0);
     tft.print("Limits");
@@ -596,7 +606,7 @@ if (menuPageShown == 2) {
     tft.setCursor(0, 95);
     tft.print(">Lake 4");
 
-     if (menuItemSelected == 4) {
+    if (menuItemSelected == 4) {
       tft.setTextColor(BLACK, WHITE);
     } else {
       tft.setTextColor(WHITE, BLACK);
@@ -605,8 +615,6 @@ if (menuPageShown == 2) {
     tft.print(">Lake 5");
   }
   
- 
-
   // MENU PAGE 3 - Help
   if (menuPageShown == 3) {
     tft.setTextColor(WHITE, BLACK);
@@ -624,7 +632,6 @@ if (menuPageShown == 2) {
     tft.setCursor(1,20);
     tft.setTextSize(1);
     tft.print("This project was created as part of an andvanced prototyping class at Berry College. If using this product and need help e-mail me at tylerdbornwing11@gmail.com");
-    // ***TYLER*** - You'll have to insert what you want to show for the ABOUT screen here
   } 
   
   // MENU PAGE 5 - Oconee
@@ -645,25 +652,37 @@ if (menuPageShown == 2) {
     tft.print("Lake 2");   
   } 
 
-    // MENU PAGE 7 - Lake 3
+  // MENU PAGE 7 - Lake 3
   if (menuPageShown == 7) {
     tft.setTextColor(WHITE, BLACK);
     tft.setCursor(9, 0);
     tft.print("Lake 3");   
   } 
 
-   // MENU PAGE 8 - Lake 4
+  // MENU PAGE 8 - Lake 4
   if (menuPageShown == 8) {
     tft.setTextColor(WHITE, BLACK);
     tft.setCursor(9, 0);
     tft.print("Lake 4");   
   } 
 
-    // MENU PAGE 9 - Lake 5
+  // MENU PAGE 9 - Lake 5
   if (menuPageShown == 9) {
     tft.setTextColor(WHITE, BLACK);
     tft.setCursor(9, 0);
     tft.print("Lake 5");   
   } 
-  
+
+} // end drawScreen()
+
+
+//
+// drawScaleWeightScreen - Special screen update routine that only updates the scale's weight on the screen
+//
+void drawScaleWeightScreen() {
+  tft.setTextColor(WHITE, BLACK);
+  tft.setTextSize(5);
+  tft.setCursor(4,50);
+  tft.print(weight);
+  tft.print(" "); //<-- do we need this extra line here
 }
