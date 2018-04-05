@@ -15,10 +15,9 @@
 /         from each one. Also changed scaleLoopBreak to 0 (temporary)
 /  v0.5 - updated switch/case statement for menu control of the LIMITS sub-menus;  modified the re-draw statements for
 /         the scale amount showing on the SCALE screen
-/
 /  v0.7 - fixed load cell problem. This code is completed without the screens for lakes drawing.
-/
 /  v0.8 - added lakes screens and filled in limits for each. Still need to add ability to scroll on these screens.
+/  v0.9 - added scrolling logic for lakes display;  added splash screen structure
 ////
 /
 /  Code support:  Tyler Browning
@@ -58,16 +57,14 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 #define RED   0xF000
 #define PINK  0xF00F
 //    HX711 constructor (dout pin, sck pin)
-// ***TYLER*** - does the statement on the next line work?  Typically, the pins have to be referenced by their digital number.
-// A0 is typically 14 and A1 is typically 15.  The line below might work...I'm not certain with these analog inputs.
 HX711_ADC LoadCell(A1, A0);
 
 
-// VARIABLES
+// GLOBAL VARIABLES
 float weight;  // holds the current weight value from the load cell
 long t = 0;        // holds timer value used in weight load cell calculations
 float loadCellCalibrationFactor = 102;  // used to calibrate the specific setup of this load cell.  Should be adjusted to achieve precise, controlled weight.
-int scaleLoopBreak = 0;  // forces the display screen to update after weightLoopCount cycles when on the SCALE menu even if no buttons have been pressed
+int scaleLoopBreak = 0;   // forces the display screen to update after weightLoopCount cycles when on the SCALE menu even if no buttons have been pressed
 int scaleLoopCounter = 0; // holds the number of current cycles through the loop function since last screen update
 
 volatile boolean up = false;
@@ -75,7 +72,6 @@ volatile boolean down = false;
 volatile boolean middle = false;
 volatile boolean hom = false;
 
-// ***TYLER*** - I changed the name to "MIDDLE" on these to be consistent with your naming
 int upButtonState = 0;
 int downButtonState = 0;
 int middleButtonState = 0;
@@ -85,7 +81,6 @@ int lastDownButtonState = 0;
 int lastMiddleButtonState = 0;
 int lastHomeButtonState = 0;
 
-// ***TYLER*** - Added new variable to hold the menu page that we want to display
 int currentMenuPage = 0;  // holds the current menu page to be displayed;
                           // page structure for this integer will be...
                           // 1   = Menu page 1
@@ -93,6 +88,7 @@ int currentMenuPage = 0;  // holds the current menu page to be displayed;
                           // 12  = Sub menu 2 of page 1
                           // 121 = Sub menu 1 of sub menu 2 of page 1
 int currentMenuItem = 0;  // holds the currently selected item "cursor" within the chosen menu page
+int screenStartingY = 0;  // allows the text on the screen to start from the Y position;  used in the Lakes screens to scroll text on button presses
 
 
 // -----------------------------------------------------------------------------------
@@ -124,6 +120,10 @@ void setup() {
   pinMode(HOME_PIN, INPUT_PULLUP);
   Serial.println("...menu button pins initialized...");
 
+  // draw a splash screen on startup
+  drawSplash(5000);
+  Serial.println("...splash screen draw complete...");
+  
   // draw the inital screen display
   drawScreen(currentMenuPage, currentMenuItem);
   Serial.println("...drawing the initial Menu screen...");
@@ -363,7 +363,6 @@ void updateMenu() {
 
     // process presses from SCALE MENU
     case 1:
-      // ***TYLER*** - not sure how many menu items you want on the SCALE screen...for now just "HOM" does anything
       if ((currentMenuItem == 0) && (up == true)) {
         // do nothing
       } else if ((currentMenuItem == 0) && (down == true)) {
@@ -378,7 +377,6 @@ void updateMenu() {
 
     // process presses from LIMITS MENU 
     case 2:
-    // ***TYLER*** - not sure how many menu items you want on the LIMITS screen...for now just "HOM" does anything
        if ((currentMenuItem == 0) && (up == true)) {
         currentMenuItem = 4; // move cursor to bottom row
       } else if ((currentMenuItem == 0) && (down == true)) {
@@ -451,7 +449,6 @@ void updateMenu() {
 
     // process presses from HELP MENU
     case 3:
-    // ***TYLER*** - not sure how many menu items you want on the HELP screen...for now just "HOM" does anything
       if ((currentMenuItem == 0) && (up == true)) {
         // do nothing
       } else if ((currentMenuItem == 0) && (down == true)) {
@@ -466,7 +463,6 @@ void updateMenu() {
 
     // process presses from the ABOUT MENU
     case 4:
-    // ***TYLER*** - not sure how many menu items you want on the ABOUT screen...for now just "HOM" does anything
       if ((currentMenuItem == 0) && (up == true)) {
         // do nothing
       } else if ((currentMenuItem == 0) && (down == true)) {
@@ -487,9 +483,16 @@ void updateMenu() {
     case 8:
     case 9:
       if ((currentMenuItem == 0) && (up == true)) {
-        // do nothing
+        // move the screen up
+        if (screenStartingY >= 0) {
+          screenStartingY = 0;
+        } else {
+          screenStartingY = screenStartingY + 5;
+        }
       } else if ((currentMenuItem == 0) && (down == true)) {
-        // do nothing
+        // move the screen down
+        // may want to put a limit on this
+        screenStartingY = screenStartingY - 5;
       } else if ((currentMenuItem == 0) && (middle == true)) {
         // do nothing
       } else if ((currentMenuItem == 0) && (hom == true)) {
@@ -509,7 +512,6 @@ void updateMenu() {
 //
 void drawScreen(int menuPageShown, int menuItemSelected) {
   
-  // ***TYLER*** - I think this is needed to allow the screen to redraw correctly.  You might want to try it wihtout this next line and see what happens
   tft.fillScreen(BLACK);  // blank the screen out before it redraws each time.
 
   // common settings for our TFT menu display
@@ -563,7 +565,6 @@ void drawScreen(int menuPageShown, int menuItemSelected) {
     tft.setTextColor(WHITE, BLACK);
 
     // show the weight that is currently read from the scale
-    // ***TYLER*** - you may have to adjust the x & y positions of the text below to get the weight to display like you want it
     tft.setCursor(40,90);
     tft.setTextSize(2);
     tft.setTextWrap(false);
@@ -620,6 +621,9 @@ void drawScreen(int menuPageShown, int menuItemSelected) {
     }
     tft.setCursor(0, 115);
     tft.print(">Lake Jackson");
+    
+    // whenever this menu is called, we need to reset the starting screen position for the subsequent detailed menus
+    screenStartingY = 0; 
   }
   
   // MENU PAGE 3 - Help
@@ -649,126 +653,126 @@ void drawScreen(int menuPageShown, int menuItemSelected) {
   // MENU PAGE 5 - Lake Oconee
   if (menuPageShown == 5) {
     tft.setTextColor(BLUE, WHITE);
-    tft.setCursor(28, 0);
+    tft.setCursor(28, screenStartingY);
     tft.setTextSize(1);
     tft.print("Lake Oconee");
     tft.setTextColor(WHITE, BLACK);
     tft.setTextWrap(true);
-    tft.setCursor(1,20);
+    tft.setCursor(1,screenStartingY + 20);
     tft.setTextSize(1);
     tft.print("Bass: 10 per person. Must be over 14      inches");
-    tft.setCursor(1,50);
+    tft.setCursor(1,screenStartingY + 50);
     tft.setTextSize(1);
     tft.print("Catfish: 50 per boat without commercial   license. No size     limit");
-    tft.setCursor(1,88);
+    tft.setCursor(1,screenStartingY + 88);
     tft.setTextSize(1);
     tft.print("Crappie: 30 per      person. No size limit");
-    tft.setCursor(1,110);
+    tft.setCursor(1,screenStartingY + 110);
     tft.setTextSize(1);
     tft.print("Bream/Sunfish: 50 perboat. No size limit");
-    tft.setCursor(1,160);
+    tft.setCursor(1,screenStartingY + 160);
     tft.setTextSize(1);
-    tft.print("Stripped Bass: 15 per person. Only two of which can be over 22 inches");
+    tft.print("Striped Bass: 15 per person. Only two of which can be over 22 inches");
   } 
 
   // MENU PAGE 6 - Lake Hartwell
   if (menuPageShown == 6) {
     tft.setTextSize(1);
     tft.setTextColor(BLUE, WHITE);
-    tft.setCursor(25, 0);
+    tft.setCursor(25, screenStartingY);
     tft.print("Lake Hartwell"); 
     tft.setTextColor(WHITE, BLACK);  
     tft.setTextWrap(true);
-    tft.setCursor(1,20);
+    tft.setCursor(1,screenStartingY + 20);
     tft.setTextSize(1);
     tft.print("Bass: 10 per person. Must be over 12      inches");
-    tft.setCursor(1,50);
+    tft.setCursor(1,screenStartingY + 50);
     tft.setTextSize(1);
     tft.print("Catfish: 50 per boat without commercial   license. No size     limit");
-    tft.setCursor(1,88);
+    tft.setCursor(1,screenStartingY + 88);
     tft.setTextSize(1);
     tft.print("Crappie: 30 per      person. No size limit");
-    tft.setCursor(1,110);
+    tft.setCursor(1,screenStartingY + 110);
     tft.setTextSize(1);
     tft.print("Bream/Sunfish: 50 perboat. No size limit");
-    tft.setCursor(1,160);
+    tft.setCursor(1,screenStartingY + 160);
     tft.setTextSize(1);
-    tft.print("Stripped Bass: 2 per person. Only 1 of which can exceed 34 inches");
+    tft.print("Striped Bass: 2 per person. Only 1 of which can exceed 34 inches");
   } 
 
   // MENU PAGE 7 - Lake Lanier
   if (menuPageShown == 7) {
     tft.setTextSize(1);
     tft.setTextColor(BLUE, WHITE);
-    tft.setCursor(30, 0);
+    tft.setCursor(30, screenStartingY + 0);
     tft.print("Lake Lanier");   
     tft.setTextColor(WHITE, BLACK);
     tft.setTextWrap(true);
-    tft.setCursor(1,20);
+    tft.setCursor(1,screenStartingY + 20);
     tft.setTextSize(1);
     tft.print("Bass: 10 per person. Must be over 14      inches");
-    tft.setCursor(1,50);
+    tft.setCursor(1,screenStartingY + 50);
     tft.setTextSize(1);
     tft.print("Catfish: 50 per boat without commercial   license. No size     limit");
-    tft.setCursor(1,88);
+    tft.setCursor(1,screenStartingY + 88);
     tft.setTextSize(1);
     tft.print("Crappie: 30 per      person. No size limit");
-    tft.setCursor(1,110);
+    tft.setCursor(1,screenStartingY + 110);
     tft.setTextSize(1);
     tft.print("Bream/Sunfish: 50 perboat. No size limit");
-    tft.setCursor(1,160);
+    tft.setCursor(1,screenStartingY + 160);
     tft.setTextSize(1);
-    tft.print("Stripped Bass: 15 per person. Only two of which can be over 22 inches");
+    tft.print("Striped Bass: 15 per person. Only two of which can be over 22 inches");
   } 
 
   // MENU PAGE 8 - Lake Seminole
   if (menuPageShown == 8) {
     tft.setTextSize(1);
     tft.setTextColor(BLUE, WHITE);
-    tft.setCursor(23, 0);
+    tft.setCursor(23, screenStartingY + 0);
     tft.print("Lake Seminole"); 
     tft.setTextColor(WHITE, BLACK);
     tft.setTextWrap(true);
-    tft.setCursor(1,20);
+    tft.setCursor(1,screenStartingY + 20);
     tft.setTextSize(1); 
     tft.print("Bass: 10 per person. Must be over 12      inches");
-    tft.setCursor(1,50);
+    tft.setCursor(1,screenStartingY + 50);
     tft.setTextSize(1);
     tft.print("Catfish: 50 per boat without commercial   license. No size     limit");
-    tft.setCursor(1,88);
+    tft.setCursor(1,screenStartingY + 88);
     tft.setTextSize(1);
     tft.print("Crappie: 30 per      person. No size limit");
-    tft.setCursor(1,110);
+    tft.setCursor(1,screenStartingY + 110);
     tft.setTextSize(1);
     tft.print("Bream/Sunfish: 50 perboat. No size limit");
-    tft.setCursor(1,160);
+    tft.setCursor(1,screenStartingY + 160);
     tft.setTextSize(1);
-    tft.print("Stripped Bass: 15 per person. Only two of which can be over 22 inches"); 
+    tft.print("Striped Bass: 15 per person. Only two of which can be over 22 inches"); 
   } 
 
   // MENU PAGE 9 - Lake Jackson
   if (menuPageShown == 9) {
     tft.setTextSize(1);
     tft.setTextColor(BLUE, WHITE);
-    tft.setCursor(26, 0);
+    tft.setCursor(26, screenStartingY + 0);
     tft.print("Lake Jackson");   
     tft.setTextColor(WHITE, BLACK);
     tft.setTextWrap(true);
-    tft.setCursor(1,20);
+    tft.setCursor(1,screenStartingY + 20);
     tft.setTextSize(1);
     tft.print("Bass: 10 per person. Must be over 12      inches");
-    tft.setCursor(1,50);
+    tft.setCursor(1,screenStartingY + 50);
     tft.setTextSize(1);
     tft.print("Catfish: 50 per boat without commercial   license. No size     limit");
-    tft.setCursor(1,88);
+    tft.setCursor(1,screenStartingY + 88);
     tft.setTextSize(1);
     tft.print("Crappie: 30 per      person. No size limit");
-    tft.setCursor(1,110);
+    tft.setCursor(1,screenStartingY + 110);
     tft.setTextSize(1);
     tft.print("Bream/Sunfish: 50 perboat. No size limit");
-    tft.setCursor(1,160);
+    tft.setCursor(1,screenStartingY + 160);
     tft.setTextSize(1);
-    tft.print("Stripped Bass: 15 per person. Only two of which can be over 22 inches");
+    tft.print("Striped Bass: 15 per person. Only two of which can be over 22 inches");
   } 
 
 } // end drawScreen()
@@ -782,5 +786,22 @@ void drawScaleWeightScreen() {
   tft.setTextSize(5);
   tft.setCursor(4,50);
   tft.print(weight);
-  tft.print(" "); //<-- do we need this extra line here
+  //tft.print(" "); //<-- do we need this extra line here
+}
+
+
+//
+// drawSplash - Draws the introductory splash screen upon startup
+//   INPUTS:  splashDuration - number of milliseconds to hold the splash screen before continuing
+//
+void drawSplash(int splashDuration) {
+  // show splash info on the screen
+  tft.setTextSize(1);
+  tft.setTextColor(BLUE, WHITE);
+  tft.setCursor(26, 0);
+  tft.print("...put some SPLASH");   
+  tft.setTextColor(WHITE, BLACK);
+  
+  // hold the splash screen for splashDuration milliseconds
+  delay(splashDuration);
 }
